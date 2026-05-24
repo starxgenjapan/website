@@ -296,15 +296,16 @@
     <!-- Email -->
     <div class="anim" style="display:flex; flex-direction:column; align-items:center; gap:12px">
       <form class="signup" id="signup"
-            action="https://formsubmit.co/starxgenjapan@gmail.com"
+            action="https://api.web3forms.com/submit"
             method="POST" novalidate>
-        <!-- FormSubmit configuration (hidden) -->
-        <input type="hidden" name="_subject" value="New starx-gen waitlist signup" />
-        <input type="hidden" name="_template" value="table" />
-        <input type="hidden" name="_captcha" value="false" />
-        <input type="hidden" name="_next" id="nextField" value="" />
+        <!-- Web3Forms configuration (hidden) -->
+        <input type="hidden" name="access_key" value="318c37b3-6366-4e08-999d-bae2bd54b4ec" />
+        <input type="hidden" name="subject" value="New starx-gen waitlist signup" />
+        <input type="hidden" name="from_name" value="starx-gen.com" />
+        <input type="hidden" name="redirect" id="nextField" value="" />
         <input type="hidden" name="language" id="langField" value="en" />
-        <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
+        <!-- honeypot field; bots fill it, humans don't -->
+        <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" />
 
         <input type="email" name="email" id="email"
                placeholder="you@somewhere.jp" data-i18n-attr="placeholder" data-i18n="email_placeholder"
@@ -324,7 +325,7 @@
 </span>
     </div>
     <div class="col anim" style="align-items:flex-end; text-align:right">
-      <span><a href="/cdn-cgi/l/email-protection#b6ded3dadad9f6c5c2d7c4ce9bd1d3d898d5d9db"></a></span>
+      <span><a href="/cdn-cgi/l/email-protection#dfb7bab3b3b09facabbeada7f2b8bab1f1bcb0b2"></a></span>
       <span class="muted" data-i18n="copyright">© 2026 · all rights reserved</span>
     </div>
   </footer>
@@ -492,21 +493,21 @@
       // Try the AJAX endpoint first — fast, no page reload.
       let ajaxOk = false;
       try {
-        const res = await fetch('https://formsubmit.co/ajax/starxgenjapan@gmail.com', {
+        const res = await fetch('https://api.web3forms.com/submit', {
           method: 'POST',
           headers: { 'Accept':'application/json', 'Content-Type':'application/json' },
           body: JSON.stringify({
+            access_key: '318c37b3-6366-4e08-999d-bae2bd54b4ec',
             email: v,
             language: currentLang,
-            _subject: 'New starx-gen waitlist signup',
-            _template: 'table'
+            subject: 'New starx-gen waitlist signup',
+            from_name: 'starx-gen.com'
           })
         });
         if (res.ok){
           const data = await res.json().catch(() => ({}));
-          // FormSubmit returns { success: "true", ... } when accepted.
-          // It also returns success on the very first call (which triggers activation).
-          if (data && (data.success === 'true' || data.success === true || data.message)){
+          // Web3Forms returns { success: true, message: "..." } on accepted submissions.
+          if (data && data.success === true){
             ajaxOk = true;
           }
         }
@@ -528,11 +529,11 @@
         return;
       }
 
-      // ── Fallback: native form POST to FormSubmit ──────────────
-      // This bypasses CORS entirely. FormSubmit processes the form
-      // server-side, then redirects the browser to `_next` — we send
-      // it back to this same page with ?signup=success so we can
-      // restore the success UI on return.
+      // ── Fallback: native form POST to Web3Forms ──────────────
+      // This bypasses CORS entirely. Web3Forms processes the form
+      // server-side, then redirects the browser to `redirect` — we
+      // send it back to this same page with ?signup=success so we
+      // can restore the success UI on return.
       const nextField = document.getElementById('nextField');
       if (nextField){
         const back = new URL(location.href);
