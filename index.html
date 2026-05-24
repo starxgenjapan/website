@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>starx-gen — coming soon</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="starx-gen — AI as a creative instrument. Coming soon from Tokyo." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&family=Noto+Serif+JP:wght@400;600&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --ink:#16140f;
+    --ink-2:#3a352e;
+    --paper:#f5f1ea;
+    --paper-2:#ebe6dc;
+    --rule:#d8d1c1;
+    --hanko:#c8412c;
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0; min-height:100vh; background:var(--paper); color:var(--ink);
+    font-family:"DM Sans",system-ui,sans-serif; -webkit-font-smoothing:antialiased;
+  }
+  /* Use Japanese-tuned font stack when lang=ja */
+  html[lang="ja"] body{
+    font-family:"Noto Serif JP","DM Sans",system-ui,sans-serif;
+  }
+  html[lang="ja"] .mono-ja{
+    font-family:"DM Mono",monospace;
+  }
+
+  /* ====== Layout ====== */
+  .page{
+    min-height:100vh;
+    display:grid;
+    grid-template-rows: auto 1fr auto;
+    padding:36px 56px;
+    gap:48px;
+    position:relative;
+  }
+  @media (max-width:720px){ .page{ padding:24px 24px; gap:32px } }
+
+  /* faint grid texture in background */
+  .page::before{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:
+      linear-gradient(to right, rgba(0,0,0,.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0,0,0,.025) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+  }
+  .page > *{ position:relative; z-index:1 }
+
+  /* ====== Header ====== */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:"DM Mono",monospace; font-size:11px; letter-spacing:.12em;
+    color:var(--ink-2); text-transform:uppercase;
+  }
+  header .left{ display:flex; align-items:center; gap:10px }
+  header .dot{ width:7px; height:7px; border-radius:50%; background:var(--hanko); display:inline-block }
+  header .right{ display:flex; gap:18px; align-items:center }
+  header .right span.muted{ opacity:.5 }
+
+  /* Language toggle */
+  .lang-toggle{
+    display:inline-flex; align-items:center;
+    border:1px solid var(--rule); border-radius:999px;
+    background:var(--paper-2); padding:2px;
+    font-family:"DM Mono",monospace; font-size:10.5px; letter-spacing:.14em;
+    overflow:hidden;
+  }
+  .lang-toggle button{
+    border:0; background:transparent; padding:5px 11px;
+    font:inherit; letter-spacing:inherit; text-transform:uppercase;
+    color:var(--ink-2); cursor:pointer; border-radius:999px;
+    transition: background .15s ease, color .15s ease;
+  }
+  .lang-toggle button.active{
+    background:var(--ink); color:var(--paper);
+  }
+  .lang-toggle button:not(.active):hover{ color:var(--ink) }
+
+  @media (max-width:560px){
+    header{ font-size:10px }
+    header .right{ gap:12px }
+    header .right .hide-mobile{ display:none }
+  }
+
+  /* ====== Hero ====== */
+  main{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:36px;
+    padding:24px 0;
+  }
+
+  /* The Echo X mark — option I */
+  .mark{ width:140px; height:140px }
+  @media (max-width:560px){ .mark{ width:108px; height:108px } }
+
+  .wordmark{
+    font-family:"DM Sans",system-ui,sans-serif;
+    font-weight:500; letter-spacing:-0.035em; line-height:1;
+    font-size: clamp(56px, 10vw, 124px);
+    color:var(--ink);
+    display:inline-flex; align-items:baseline; white-space:nowrap;
+  }
+  .wordmark .sep{ opacity:.4; margin:0 .12em; font-weight:300 }
+  .wordmark .gen{ font-weight:400 }
+
+  .tagline{
+    font-family:"DM Mono",monospace;
+    font-size:12px; letter-spacing:.32em; text-transform:uppercase;
+    color:var(--ink-2);
+    display:flex; align-items:center; gap:14px;
+  }
+  html[lang="ja"] .tagline{
+    font-family:"Noto Serif JP",serif;
+    letter-spacing:.18em; text-transform:none;
+  }
+  .tagline .bar{ width:32px; height:1px; background:currentColor; opacity:.4 }
+  @media (max-width:560px){
+    .tagline{ font-size:10px; letter-spacing:.22em }
+    .tagline .bar{ width:18px }
+  }
+
+  /* Status pill */
+  .status{
+    display:inline-flex; align-items:center; gap:10px;
+    padding:7px 14px 7px 12px;
+    border:1px solid var(--rule); border-radius:999px;
+    background:var(--paper-2);
+    font-family:"DM Mono",monospace; font-size:10.5px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--ink-2);
+  }
+  html[lang="ja"] .status{
+    font-family:"Noto Serif JP",serif; letter-spacing:.12em; text-transform:none;
+  }
+  .status .pulse{
+    width:7px; height:7px; border-radius:50%; background:var(--hanko);
+    box-shadow:0 0 0 0 rgba(200,65,44,.4);
+    animation: pulse 2.6s ease-out infinite;
+  }
+  @keyframes pulse{
+    0%{ box-shadow:0 0 0 0 rgba(200,65,44,.45) }
+    70%{ box-shadow:0 0 0 10px rgba(200,65,44,0) }
+    100%{ box-shadow:0 0 0 0 rgba(200,65,44,0) }
+  }
+
+  /* Mission line */
+  .mission{
+    max-width:54ch;
+    font-size: clamp(17px, 1.5vw, 21px);
+    line-height:1.55; color:var(--ink-2);
+    text-wrap: pretty;
+    margin:0;
+  }
+  .mission em{
+    font-family:"Noto Serif JP", serif; font-style:normal; font-weight:600;
+    color:var(--ink);
+  }
+  html[lang="ja"] .mission{
+    line-height:1.8;
+  }
+  html[lang="ja"] .mission em{
+    font-weight:600; color:var(--hanko);
+  }
+
+  /* ====== Email form ====== */
+  form.signup{
+    display:flex; gap:0; align-items:stretch;
+    background:var(--paper);
+    border:1px solid var(--ink);
+    border-radius:2px;
+    width:min(440px, 92vw);
+    overflow:hidden;
+    transition: box-shadow .2s ease;
+  }
+  form.signup:focus-within{ box-shadow:0 0 0 3px rgba(22,20,15,.08) }
+  form.signup input[type=email]{
+    flex:1; min-width:0;
+    border:0; outline:none; background:transparent;
+    padding:14px 16px;
+    font-family:"DM Sans",system-ui,sans-serif;
+    font-size:14px; color:var(--ink);
+  }
+  form.signup input::placeholder{ color:#9a9285 }
+  form.signup button{
+    border:0; background:var(--ink); color:var(--paper);
+    padding:0 22px;
+    font-family:"DM Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+    cursor:pointer; white-space:nowrap;
+    transition: background .15s ease;
+  }
+  html[lang="ja"] form.signup button{
+    font-family:"Noto Serif JP",serif; letter-spacing:.08em; text-transform:none; font-size:12px;
+  }
+  form.signup button:hover{ background:var(--hanko) }
+  form.signup button:disabled{ opacity:.6; cursor:default }
+
+  .form-note{
+    font-family:"DM Mono",monospace; font-size:10px; letter-spacing:.12em;
+    color:#8a8275; text-transform:uppercase;
+    min-height:14px;
+  }
+  html[lang="ja"] .form-note{
+    font-family:"Noto Serif JP",serif; letter-spacing:.06em; text-transform:none; font-size:11px;
+  }
+  .form-note.success{ color:var(--hanko) }
+  .form-note.error{ color:var(--hanko) }
+
+  /* ====== Footer ====== */
+  footer{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap:24px; flex-wrap:wrap;
+    padding-top:24px; border-top:1px solid var(--rule);
+    font-family:"DM Mono",monospace; font-size:10.5px; letter-spacing:.12em;
+    color:var(--ink-2); text-transform:uppercase;
+  }
+  html[lang="ja"] footer{
+    font-family:"Noto Serif JP",serif; letter-spacing:.04em; text-transform:none; font-size:12px;
+  }
+  footer .col{ display:flex; flex-direction:column; gap:6px }
+  footer .col .muted{ opacity:.55 }
+  footer .jp{ font-family:"Noto Serif JP",serif; font-size:13px; letter-spacing:.04em; text-transform:none }
+  footer a{ color:inherit; text-decoration:none; opacity:.7; transition:opacity .15s }
+  footer a:hover{ opacity:1; color:var(--hanko) }
+
+  /* Entry animation */
+  .anim{ opacity:0; transform: translateY(8px); animation: rise .9s ease forwards }
+  .anim:nth-child(1){ animation-delay: .05s }
+  .anim:nth-child(2){ animation-delay: .15s }
+  .anim:nth-child(3){ animation-delay: .25s }
+  .anim:nth-child(4){ animation-delay: .35s }
+  .anim:nth-child(5){ animation-delay: .45s }
+  .anim:nth-child(6){ animation-delay: .55s }
+  @keyframes rise{ to{ opacity:1; transform:none } }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header>
+    <div class="left">
+      <span class="dot"></span>
+      <span>starx-gen</span>
+    </div>
+    <div class="right">
+      <span class="hide-mobile muted" data-i18n="estd">2025年設立</span>
+      <span data-i18n="city">東京 · tokyo</span>
+      <div class="lang-toggle" role="group" aria-label="Language">
+        <button type="button" data-lang="en" class="active">EN</button>
+        <button type="button" data-lang="ja">JA</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Status -->
+    <div class="status anim">
+      <span class="pulse"></span>
+      <span data-i18n="status">in stealth · 2026</span>
+    </div>
+
+    <!-- Mark (Echo / option I) -->
+    <svg class="mark anim" viewBox="-60 -60 120 120" aria-label="starx-gen mark">
+      <g transform="translate(5 5)">
+        <rect x="-44" y="-5.5" width="88" height="11" rx="5.5" fill="var(--hanko)" transform="rotate(45)"/>
+        <rect x="-44" y="-5.5" width="88" height="11" rx="5.5" fill="var(--hanko)" transform="rotate(-45)"/>
+      </g>
+      <rect x="-44" y="-5.5" width="88" height="11" rx="5.5" fill="var(--ink)" transform="rotate(45)"/>
+      <rect x="-44" y="-5.5" width="88" height="11" rx="5.5" fill="var(--ink)" transform="rotate(-45)"/>
+    </svg>
+
+    <!-- Wordmark + tagline -->
+    <div class="anim" style="display:flex; flex-direction:column; align-items:center; gap:18px">
+      <h1 class="wordmark" style="margin:0">
+        <span>starx</span><span class="sep">·</span><span class="gen">gen</span>
+      </h1>
+      <div class="tagline">
+        <span class="bar"></span>
+        <span data-i18n="tagline">human × ai × human</span>
+        <span class="bar"></span>
+      </div>
+    </div>
+
+    <!-- Mission -->
+    <p class="mission anim" id="mission" data-i18n="mission" data-i18n-html="true">
+      <em>AI as a creative instrument</em>—not a replacement. Tools that expand what humans can imagine.
+    </p>
+
+    <!-- Email -->
+    <div class="anim" style="display:flex; flex-direction:column; align-items:center; gap:12px">
+      <form class="signup" id="signup"
+            action="https://formsubmit.co/ajax/starxgenjapan@gmail.com"
+            method="POST" novalidate>
+        <!-- FormSubmit configuration (hidden) -->
+        <input type="hidden" name="_subject" value="New starx-gen waitlist signup" />
+        <input type="hidden" name="_template" value="table" />
+        <input type="hidden" name="_captcha" value="false" />
+        <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
+
+        <input type="email" name="email" id="email"
+               placeholder="you@somewhere.jp" data-i18n-attr="placeholder" data-i18n="email_placeholder"
+               autocomplete="email" required />
+        <button type="submit" id="submitBtn" data-i18n="submit">Keep me posted</button>
+      </form>
+      <div class="form-note" id="note" data-i18n="form_note">NO SPAM · EARLY ACCESS</div>
+    </div>
+
+  </main>
+
+  <footer>
+    <div class="col anim">
+      <span class="jp" data-i18n="company">
+</span>
+      <span class="muted" data-i18n="address">
+</span>
+    </div>
+    <div class="col anim" style="align-items:flex-end; text-align:right">
+      <span><a href="/cdn-cgi/l/email-protection#264e434a4a4966555247545e0b4143480845494b"></a></span>
+      <span class="muted" data-i18n="copyright">© 2026 · all rights reserved</span>
+    </div>
+  </footer>
+
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  // ─────────────────────────────────────────────────────────
+  // i18n dictionary
+  // ─────────────────────────────────────────────────────────
+  const i18n = {
+    en: {
+      estd:    'est. 2026',
+      city:    '東京 · tokyo',
+      status:  'in stealth · 2026',
+      tagline: 'human × ai × human',
+      mission: '<em>AI as a creative instrument</em>—not a replacement. Tools that expand what humans can imagine.',
+      email_placeholder: 'you@somewhere.jp',
+      submit:  'Keep me posted',
+      form_note: 'no spam · early access · the occasional letter',
+      company: '株式会社 starx-gen',
+      address: '2-1-1 omotesando · shibuya · tokyo',
+      copyright: '© 2026 · all rights reserved',
+      // form states
+      invalid: 'please enter a valid email address',
+      sending: 'sending…',
+      sent:    "✓ you're on the list — we'll be in touch",
+      sentBtn: 'thank you',
+      error:   'something went wrong — please try again',
+      submitDefault: 'Keep me posted'
+    },
+    ja: {
+      estd:    '2026年設立',
+      city:    '東京',
+      status:  'ステルス開発中 · 2026',
+      tagline: '人 × AI × 人',
+      mission: '<em>AIは創造の道具</em>であり、人の代わりではない。人間の想像力を広げるための、静かな道具を作っています。',
+      email_placeholder: 'your-email@example.jp',
+      submit:  'お知らせを受け取る',
+      form_note: 'スパムなし · 早期アクセス · 時折のお便り',
+      company: '株式会社 starx-gen',
+      address: '東京都渋谷区表参道2-1-1',
+      copyright: '© 2026 · 無断複製禁止',
+      // form states
+      invalid: '有効なメールアドレスを入力してください',
+      sending: '送信中…',
+      sent:    '✓ ご登録ありがとうございます。改めてご連絡いたします。',
+      sentBtn: 'ありがとうございます',
+      error:   'エラーが発生しました。もう一度お試しください。',
+      submitDefault: 'お知らせを受け取る'
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // Language switching
+  // ─────────────────────────────────────────────────────────
+  let currentLang = 'en';
+
+  function setLang(lang){
+    if (!i18n[lang]) return;
+    currentLang = lang;
+    document.documentElement.lang = lang;
+    try { localStorage.setItem('starxgen.lang', lang); } catch(e){}
+
+    const dict = i18n[lang];
+
+    // Update text/attribute nodes marked with data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      const val = dict[key];
+      if (val == null) return;
+      const attr = el.getAttribute('data-i18n-attr');
+      if (attr){
+        el.setAttribute(attr, val);
+      } else if (el.getAttribute('data-i18n-html') === 'true'){
+        el.innerHTML = val;
+      } else {
+        el.textContent = val;
+      }
+    });
+
+    // Toggle button state
+    document.querySelectorAll('.lang-toggle button').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-lang') === lang);
+    });
+
+    // Reset any in-flight form state to the new language's default note
+    const note = document.getElementById('note');
+    if (note && !note.classList.contains('success') && !note.classList.contains('error')){
+      note.textContent = dict.form_note;
+    }
+    const submitBtn = document.getElementById('submitBtn');
+    if (submitBtn && !submitBtn.disabled){
+      submitBtn.textContent = dict.submitDefault;
+    }
+  }
+
+  document.querySelectorAll('.lang-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => setLang(btn.getAttribute('data-lang')));
+  });
+
+  // Restore saved language, else auto-detect from browser
+  (function bootLang(){
+    let saved = null;
+    try { saved = localStorage.getItem('starxgen.lang'); } catch(e){}
+    if (saved && i18n[saved]) return setLang(saved);
+    const browser = (navigator.language || 'en').toLowerCase();
+    setLang(browser.startsWith('ja') ? 'ja' : 'en');
+  })();
+
+  // ─────────────────────────────────────────────────────────
+  // Form submission → FormSubmit.co (sends to starxgenjapan@gmail.com)
+  // First-time activation: the first POST triggers an email to that
+  // address with an activation link. After clicking it once, all
+  // future submissions arrive directly.
+  // ─────────────────────────────────────────────────────────
+  (function initForm(){
+    const form  = document.getElementById('signup');
+    const note  = document.getElementById('note');
+    const btn   = document.getElementById('submitBtn');
+    const email = document.getElementById('email');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const dict = i18n[currentLang];
+      const v = (email.value || '').trim();
+      const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      if (!ok){
+        note.textContent = dict.invalid;
+        note.classList.remove('success'); note.classList.add('error');
+        email.focus();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = dict.sending;
+      note.classList.remove('success','error');
+      note.textContent = dict.form_note;
+
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'Accept':'application/json', 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            email: v,
+            language: currentLang,
+            _subject: 'New starx-gen waitlist signup',
+            _template: 'table'
+          })
+        });
+        if (!res.ok) throw new Error('http ' + res.status);
+
+        btn.textContent = dict.sentBtn;
+        note.textContent = dict.sent;
+        note.classList.add('success');
+        email.value = '';
+
+        // Restore after a moment so the form is reusable
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = i18n[currentLang].submitDefault;
+          note.classList.remove('success');
+          note.textContent = i18n[currentLang].form_note;
+        }, 7000);
+      } catch (err){
+        console.error('[signup] submit failed', err);
+        btn.disabled = false;
+        btn.textContent = i18n[currentLang].submitDefault;
+        note.textContent = i18n[currentLang].error;
+        note.classList.add('error');
+      }
+    });
+  })();
+</script>
+
+</body>
+</html>
