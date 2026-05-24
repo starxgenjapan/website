@@ -296,12 +296,14 @@
     <!-- Email -->
     <div class="anim" style="display:flex; flex-direction:column; align-items:center; gap:12px">
       <form class="signup" id="signup"
-            action="https://formsubmit.co/ajax/starxgenjapan@gmail.com"
+            action="https://formsubmit.co/starxgenjapan@gmail.com"
             method="POST" novalidate>
         <!-- FormSubmit configuration (hidden) -->
         <input type="hidden" name="_subject" value="New starx-gen waitlist signup" />
         <input type="hidden" name="_template" value="table" />
         <input type="hidden" name="_captcha" value="false" />
+        <input type="hidden" name="_next" id="nextField" value="" />
+        <input type="hidden" name="language" id="langField" value="en" />
         <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
 
         <input type="email" name="email" id="email"
@@ -322,7 +324,7 @@
 </span>
     </div>
     <div class="col anim" style="align-items:flex-end; text-align:right">
-      <span><a href="/cdn-cgi/l/email-protection#264e434a4a4966555247545e0b4143480845494b"></a></span>
+      <span><a href="/cdn-cgi/l/email-protection#b6ded3dadad9f6c5c2d7c4ce9bd1d3d898d5d9db"></a></span>
       <span class="muted" data-i18n="copyright">© 2026 · all rights reserved</span>
     </div>
   </footer>
@@ -445,6 +447,27 @@
     const btn   = document.getElementById('submitBtn');
     const email = document.getElementById('email');
 
+    // If the user has just been bounced back from FormSubmit's success page,
+    // show the success state immediately.
+    (function checkReturning(){
+      const params = new URLSearchParams(location.search);
+      if (params.get('signup') === 'success'){
+        const dict = i18n[currentLang];
+        btn.disabled = true;
+        btn.textContent = dict.sentBtn;
+        note.textContent = dict.sent;
+        note.classList.add('success');
+        // Clean the URL so refreshes don't re-trigger the message
+        history.replaceState({}, '', location.pathname);
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = i18n[currentLang].submitDefault;
+          note.classList.remove('success');
+          note.textContent = i18n[currentLang].form_note;
+        }, 7000);
+      }
+    })();
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const dict = i18n[currentLang];
@@ -462,8 +485,14 @@
       note.classList.remove('success','error');
       note.textContent = dict.form_note;
 
+      // Keep the hidden language field in sync with the current toggle
+      const langField = document.getElementById('langField');
+      if (langField) langField.value = currentLang;
+
+      // Try the AJAX endpoint first — fast, no page reload.
+      let ajaxOk = false;
       try {
-        const res = await fetch(form.action, {
+        const res = await fetch('https://formsubmit.co/ajax/starxgenjapan@gmail.com', {
           method: 'POST',
           headers: { 'Accept':'application/json', 'Content-Type':'application/json' },
           body: JSON.stringify({
@@ -473,27 +502,46 @@
             _template: 'table'
           })
         });
-        if (!res.ok) throw new Error('http ' + res.status);
+        if (res.ok){
+          const data = await res.json().catch(() => ({}));
+          // FormSubmit returns { success: "true", ... } when accepted.
+          // It also returns success on the very first call (which triggers activation).
+          if (data && (data.success === 'true' || data.success === true || data.message)){
+            ajaxOk = true;
+          }
+        }
+      } catch (err){
+        console.warn('[signup] ajax failed, falling back to native submit', err);
+      }
 
+      if (ajaxOk){
         btn.textContent = dict.sentBtn;
         note.textContent = dict.sent;
         note.classList.add('success');
         email.value = '';
-
-        // Restore after a moment so the form is reusable
         setTimeout(() => {
           btn.disabled = false;
           btn.textContent = i18n[currentLang].submitDefault;
           note.classList.remove('success');
           note.textContent = i18n[currentLang].form_note;
         }, 7000);
-      } catch (err){
-        console.error('[signup] submit failed', err);
-        btn.disabled = false;
-        btn.textContent = i18n[currentLang].submitDefault;
-        note.textContent = i18n[currentLang].error;
-        note.classList.add('error');
+        return;
       }
+
+      // ── Fallback: native form POST to FormSubmit ──────────────
+      // This bypasses CORS entirely. FormSubmit processes the form
+      // server-side, then redirects the browser to `_next` — we send
+      // it back to this same page with ?signup=success so we can
+      // restore the success UI on return.
+      const nextField = document.getElementById('nextField');
+      if (nextField){
+        const back = new URL(location.href);
+        back.search = '?signup=success';
+        nextField.value = back.toString();
+      }
+      // Native form.submit() does NOT re-trigger this event listener,
+      // so it's safe to call here.
+      form.submit();
     });
   })();
 </script>
