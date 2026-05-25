@@ -313,17 +313,11 @@
 
     <!-- Email -->
     <div class="anim" style="display:flex; flex-direction:column; align-items:center; gap:12px">
-      <form class="signup" id="signup"
-            action="https://api.web3forms.com/submit"
-            method="POST" novalidate>
-        <!-- Web3Forms configuration (hidden) -->
-        <input type="hidden" name="access_key" value="318c37b3-6366-4e08-999d-bae2bd54b4ec" />
-        <input type="hidden" name="subject" value="New starx-gen waitlist signup" />
-        <input type="hidden" name="from_name" value="starx-gen.com" />
-        <input type="hidden" name="redirect" id="nextField" value="" />
+      <form class="signup" id="signup" novalidate>
+        <!-- Submitted to a Google Apps Script Web App (see GAS_URL in the script below) -->
         <input type="hidden" name="language" id="langField" value="en" />
         <!-- honeypot field; bots fill it, humans don't -->
-        <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" />
+        <input type="text" name="company" style="display:none" tabindex="-1" autocomplete="off" />
 
         <input type="email" name="email" id="email"
                placeholder="you@somewhere.jp" data-i18n-attr="placeholder" data-i18n="email_placeholder"
@@ -343,7 +337,7 @@
 </span>
     </div>
     <div class="col anim" style="align-items:flex-end; text-align:right">
-      <span><a href="/cdn-cgi/l/email-protection#4c24292020230c3f382d3e34612b2922622f2321"></a></span>
+      <span><a href="/cdn-cgi/l/email-protection#650d0009090a25161104171d4802000b4b060a08"></a></span>
       <span class="muted" data-i18n="copyright">© 2026 · all rights reserved</span>
     </div>
   </footer>
@@ -459,38 +453,22 @@
   })();
 
   // ─────────────────────────────────────────────────────────
-  // Form submission → FormSubmit.co (sends to starxgenjapan@gmail.com)
-  // First-time activation: the first POST triggers an email to that
-  // address with an activation link. After clicking it once, all
-  // future submissions arrive directly.
   // ─────────────────────────────────────────────────────────
+  // Form submission → Google Apps Script Web App
+  //
+  // PASTE the deployed Web-App URL between the quotes below. It
+  // looks like: https://script.google.com/macros/s/AKfycb…/exec
+  // Apps Script Web Apps don't send CORS headers, so we POST as
+  // text/plain — a "simple" request the browser allows without a
+  // preflight. The Apps Script parses the JSON body itself.
+  // ─────────────────────────────────────────────────────────
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbykV8B_YXopdacXIkcp4cS_pqP-CMSQL2a1vTs694sxlh9T9Ixv_5u-vR3AtjD57J6T/exec';
+
   (function initForm(){
     const form  = document.getElementById('signup');
     const note  = document.getElementById('note');
     const btn   = document.getElementById('submitBtn');
     const email = document.getElementById('email');
-
-    // If the user has just been bounced back from FormSubmit's success page,
-    // show the success state immediately.
-    (function checkReturning(){
-      const params = new URLSearchParams(location.search);
-      if (params.get('signup') === 'success'){
-        const dict = i18n[currentLang];
-        btn.disabled = true;
-        btn.textContent = dict.sentBtn;
-        note.textContent = dict.sent;
-        note.classList.add('success');
-        window.__track && window.__track('signup_success', { method: 'redirect' });
-        // Clean the URL so refreshes don't re-trigger the message
-        history.replaceState({}, '', location.pathname);
-        setTimeout(() => {
-          btn.disabled = false;
-          btn.textContent = i18n[currentLang].submitDefault;
-          note.classList.remove('success');
-          note.textContent = i18n[currentLang].form_note;
-        }, 7000);
-      }
-    })();
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -504,69 +482,57 @@
         return;
       }
 
+      // Honeypot: if the hidden "company" field has content, silently
+      // pretend success (it's almost certainly a bot).
+      const honey = form.querySelector('input[name="company"]');
+      if (honey && honey.value){
+        btn.disabled = true;
+        btn.textContent = dict.sentBtn;
+        note.textContent = dict.sent;
+        note.classList.add('success');
+        email.value = '';
+        return;
+      }
+
       btn.disabled = true;
       btn.textContent = dict.sending;
       note.classList.remove('success','error');
       note.textContent = dict.form_note;
 
-      // Keep the hidden language field in sync with the current toggle
-      const langField = document.getElementById('langField');
-      if (langField) langField.value = currentLang;
-
-      // Try the AJAX endpoint first — fast, no page reload.
-      let ajaxOk = false;
       try {
-        const res = await fetch('https://api.web3forms.com/submit', {
+        const res = await fetch(GAS_URL, {
           method: 'POST',
-          headers: { 'Accept':'application/json', 'Content-Type':'application/json' },
+          // text/plain avoids a CORS preflight for Apps Script Web Apps
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
-            access_key: '318c37b3-6366-4e08-999d-bae2bd54b4ec',
             email: v,
             language: currentLang,
-            subject: 'New starx-gen waitlist signup',
-            from_name: 'starx-gen.com'
+            page: location.href,
+            referrer: document.referrer || '',
+            ua: navigator.userAgent
           })
         });
-        if (res.ok){
-          const data = await res.json().catch(() => ({}));
-          // Web3Forms returns { success: true, message: "..." } on accepted submissions.
-          if (data && data.success === true){
-            ajaxOk = true;
-            window.__track && window.__track('signup_success', { method: 'ajax' });
-          }
-        }
-      } catch (err){
-        console.warn('[signup] ajax failed, falling back to native submit', err);
-      }
+        if (!res.ok) throw new Error('http ' + res.status);
 
-      if (ajaxOk){
         btn.textContent = dict.sentBtn;
         note.textContent = dict.sent;
         note.classList.add('success');
         email.value = '';
+        window.__track && window.__track('signup_success', { method: 'gas' });
+
         setTimeout(() => {
           btn.disabled = false;
           btn.textContent = i18n[currentLang].submitDefault;
           note.classList.remove('success');
           note.textContent = i18n[currentLang].form_note;
         }, 7000);
-        return;
+      } catch (err){
+        console.error('[signup] submit failed', err);
+        btn.disabled = false;
+        btn.textContent = i18n[currentLang].submitDefault;
+        note.textContent = i18n[currentLang].error;
+        note.classList.add('error');
       }
-
-      // ── Fallback: native form POST to Web3Forms ──────────────
-      // This bypasses CORS entirely. Web3Forms processes the form
-      // server-side, then redirects the browser to `redirect` — we
-      // send it back to this same page with ?signup=success so we
-      // can restore the success UI on return.
-      const nextField = document.getElementById('nextField');
-      if (nextField){
-        const back = new URL(location.href);
-        back.search = '?signup=success';
-        nextField.value = back.toString();
-      }
-      // Native form.submit() does NOT re-trigger this event listener,
-      // so it's safe to call here.
-      form.submit();
     });
   })();
 </script>
